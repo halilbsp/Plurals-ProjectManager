@@ -4,21 +4,16 @@ from sqlalchemy.orm import relationship
 from app.db.database import Base
 
 
-class Workspace(Base):
-    __tablename__ = "workspaces"
+class Project(Base):
+    __tablename__ = "projects"
 
     id = Column(Integer, primary_key=True, index=True)
 
     name = Column(String)
 
-    owner_id = Column(
+    workspace_id = Column(
         Integer,
-        ForeignKey("users.id")
+        ForeignKey("workspaces.id")
     )
 
-    owner = relationship("User")
-
-    projects = relationship(
-        "Project",
-        backref="workspace"
-    )
+    workspace = relationship("Workspace")
