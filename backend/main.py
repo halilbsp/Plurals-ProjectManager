@@ -1,10 +1,20 @@
 from fastapi import FastAPI
+
 from app.db.database import Base, engine
+
+from app.api.auth import router as auth_router
+from app.api.routes import router as main_router
+from app.api.workspace import router as workspace_router
 
 app = FastAPI()
 
 Base.metadata.create_all(bind=engine)
 
+app.include_router(auth_router, prefix="/auth", tags=["auth"])
+app.include_router(workspace_router, prefix="/workspace", tags=["workspace"])
+app.include_router(main_router)
+
+
 @app.get("/")
 def root():
-    return {"message": "API çalışıyor"}
+    return {"msg": "API çalışıyor"}
