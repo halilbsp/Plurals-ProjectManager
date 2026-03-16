@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.models.task import Task
-from app.schemas.task import TaskCreate, TaskUpdate
+from app.schemas.task import TaskCreate
 
 router = APIRouter()
 
@@ -18,6 +18,7 @@ def create_task(
         title=data.title,
         description=data.description,
         project_id=data.project_id,
+        column_id=data.column_id
     )
 
     db.add(task)
@@ -33,21 +34,3 @@ def list_tasks(
 ):
 
     return db.query(Task).all()
-
-
-@router.put("/{task_id}")
-def update_task(
-    task_id: int,
-    data: TaskUpdate,
-    db: Session = Depends(get_db)
-):
-
-    task = db.query(Task).get(task_id)
-
-    task.title = data.title
-    task.description = data.description
-    task.status = data.status
-
-    db.commit()
-
-    return task

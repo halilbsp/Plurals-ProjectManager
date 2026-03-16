@@ -22,3 +22,8 @@ class Project(Base):
         "Task",
         backref="project"
     )
+
+    columns = relationship(
+        "Column",
+        backref="project"
+    )
