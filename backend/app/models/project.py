@@ -17,3 +17,8 @@ class Project(Base):
     )
 
     workspace = relationship("Workspace")
+
+    tasks = relationship(
+        "Task",
+        backref="project"
+    )
