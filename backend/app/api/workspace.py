@@ -1,34 +1,12 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
-
-from app.db.database import get_db
-from app.models.workspace import Workspace
-from app.schemas.workspace import WorkspaceCreate
+from fastapi import APIRouter
 
 router = APIRouter()
 
+# DİKKAT: İçi tamamen BOŞ ("") olmalı! Çünkü "workspace" kelimesi zaten main.py'den geliyor.
+@router.get("")
+def get_workspaces():
+    return [{"id": 1, "name": "Plurals Workspace"}]
 
-@router.post("/")
-def create_workspace(
-    data: WorkspaceCreate,
-    db: Session = Depends(get_db)
-):
-
-    workspace = Workspace(
-        name=data.name,
-        owner_id=1
-    )
-
-    db.add(workspace)
-    db.commit()
-    db.refresh(workspace)
-
-    return workspace
-
-
-@router.get("/")
-def list_workspace(
-    db: Session = Depends(get_db)
-):
-
-    return db.query(Workspace).all()
+@router.post("")
+def create_workspace(name: str):
+    return {"message": "success", "name": name}
