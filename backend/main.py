@@ -1,9 +1,12 @@
+from datetime import datetime, timedelta
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import inspect, text
 
 from app.db.database import Base, SessionLocal, engine
 from app.models.column import BoardColumn
+from app.models.notification import Notification
 from app.models.project import Project
 from app.models.task import Task
 from app.models.user import User
@@ -94,7 +97,9 @@ def ensure_demo_data() -> None:
             }
 
             for project in projects:
-                for title, status, priority, due_date in task_seed.get(project.name, []):
+                for title, status, priority, due_date in task_seed.get(
+                    project.name, []
+                ):
                     db.add(
                         Task(
                             title=title,
@@ -107,6 +112,59 @@ def ensure_demo_data() -> None:
                         )
                     )
             db.commit()
+
+        # Seed demo notifications
+        existing_notifications = (
+            db.query(Notification).order_by(Notification.id.asc()).all()
+        )
+        if not existing_notifications:
+            now = datetime.now()
+            notification_seed = [
+                {
+                    "title": "Welcome to Plurals",
+                    "message": "Your workspace is ready. Start creating projects and tasks!",
+                    "type": "system",
+                    "is_read": 1,
+                    "project_id": None,
+                    "created_at": (now - timedelta(days=2)).isoformat(),
+                },
+                {
+                    "title": "New task assigned",
+                    "message": "You have been assigned to 'Design QA Checklist'",
+                    "type": "task",
+                    "is_read": 0,
+                    "project_id": 1,
+                    "created_at": (now - timedelta(hours=6)).isoformat(),
+                },
+                {
+                    "title": "Broadcast from Scott",
+                    "message": "Great work on the landing page! The client loved it 🎉",
+                    "type": "broadcast",
+                    "is_read": 0,
+                    "project_id": 1,
+                    "created_at": (now - timedelta(hours=3)).isoformat(),
+                },
+                {
+                    "title": "Task completed",
+                    "message": "Jessica marked 'Logo Design' as done",
+                    "type": "task",
+                    "is_read": 0,
+                    "project_id": 1,
+                    "created_at": (now - timedelta(hours=1)).isoformat(),
+                },
+                {
+                    "title": "Sprint review reminder",
+                    "message": "Weekly sprint review starts in 30 minutes",
+                    "type": "system",
+                    "is_read": 0,
+                    "project_id": None,
+                    "created_at": (now - timedelta(minutes=30)).isoformat(),
+                },
+            ]
+
+            for item in notification_seed:
+                db.add(Notification(**item))
+            db.commit()
     finally:
         db.close()
 
@@ -115,6 +173,7 @@ ensure_task_columns()
 ensure_demo_data()
 
 from app.api.dashboard import router as dashboard_router
+from app.api.notification import router as notification_router
 from app.api.project import router as project_router
 from app.api.task import router as task_router
 from app.api.workspace import router as workspace_router
@@ -130,6 +189,7 @@ app.add_middleware(
 )
 
 app.include_router(dashboard_router, prefix="/dashboard")
+app.include_router(notification_router, prefix="/notification")
 app.include_router(workspace_router, prefix="/workspace")
 app.include_router(project_router, prefix="/project")
 app.include_router(task_router, prefix="/task")
