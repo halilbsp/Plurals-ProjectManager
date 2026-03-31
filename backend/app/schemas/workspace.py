@@ -1,18 +1,47 @@
-# backend/app/schemas/workspace.py
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
+
 
 class WorkspaceBase(BaseModel):
     name: str
 
-# image_1.png'de Workspaces Section: "Workspace" (aktif, siyah, kalın) 👇
+
+class WorkspaceCreate(WorkspaceBase):
+    pass
+
+
+class WorkspaceUpdate(BaseModel):
+    name: Optional[str] = None
+
+
 class WorkspaceOut(WorkspaceBase):
     id: int
-    # Bir çalışma alanının kimin (User) sahibi olduğunu bilmesi için owner_id alanı ekle 👈
     owner_id: int
+    created_at: Optional[str] = None
 
     class Config:
         from_attributes = True
 
-class WorkspaceCreate(WorkspaceBase):
-    owner_id: int # Çalışma alanını kim oluşturuyor
+
+class WorkspaceMemberOut(BaseModel):
+    id: int
+    workspace_id: int
+    user_id: int
+    role: str
+    user_name: Optional[str] = None
+    user_avatar: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class WorkspaceDetailOut(WorkspaceOut):
+    members: List[WorkspaceMemberOut] = []
+    member_count: int = 0
+
+    class Config:
+        from_attributes = True
+
+
+class WorkspaceSwitchRequest(BaseModel):
+    workspace_id: int

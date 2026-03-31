@@ -15,8 +15,10 @@ class Task(Base):
     due_date = Column(String, nullable=True)
 
     column_id = Column(Integer, ForeignKey("columns.id"))
-
     project_id = Column(Integer, ForeignKey("projects.id"))
 
     column = relationship("BoardColumn")
     project = relationship("Project", back_populates="tasks")
+    comments = relationship("Comment", back_populates="task", cascade="all, delete-orphan")
+    subtasks = relationship("Subtask", back_populates="task", cascade="all, delete-orphan")
+    tags = relationship("Tag", back_populates="task", cascade="all, delete-orphan")
