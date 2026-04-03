@@ -13,6 +13,7 @@ class Task(Base):
     status = Column(String, default="todo", index=True)
     priority = Column(String, default="medium")
     due_date = Column(String, nullable=True)
+    assigned_to = Column(Integer, nullable=True)
 
     column_id = Column(Integer, ForeignKey("columns.id"))
     project_id = Column(Integer, ForeignKey("projects.id"))

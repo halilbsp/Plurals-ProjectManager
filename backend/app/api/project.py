@@ -3,8 +3,10 @@ from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.models.project import Project
+from app.models.project_member import ProjectMember
 from app.models.task import Task
-from app.schemas.project import ProjectCreate, ProjectOut, ProjectUpdate
+from app.models.user import User
+from app.schemas.project import ProjectCreate, ProjectMemberOut, ProjectOut, ProjectUpdate
 
 router = APIRouter()
 
@@ -16,6 +18,36 @@ def get_projects(workspace_id: int | None = None, db: Session = Depends(get_db))
         query = query.filter(Project.workspace_id == workspace_id)
 
     return query.order_by(Project.id.asc()).all()
+
+
+@router.get("/{project_id}/members", response_model=list[ProjectMemberOut])
+def get_project_members(project_id: int, db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found.")
+
+    members = (
+        db.query(ProjectMember)
+        .filter(ProjectMember.project_id == project_id)
+        .all()
+    )
+
+    result = []
+    for member in members:
+        user = db.query(User).filter(User.id == member.user_id).first()
+        if user:
+            result.append(
+                ProjectMemberOut(
+                    id=member.id,
+                    user_id=user.id,
+                    role=member.role,
+                    user_name=user.name,
+                    user_email=user.email,
+                    user_avatar=user.avatar or "",
+                )
+            )
+
+    return result
 
 
 @router.post("", response_model=ProjectOut)

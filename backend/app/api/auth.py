@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
@@ -10,9 +11,14 @@ from app.core.security import hash_password, verify_password, create_token
 router = APIRouter()
 
 
+class ChangePasswordRequest(BaseModel):
+    user_id: int
+    current_password: str
+    new_password: str
+
+
 def _build_user_response(user: User, token: str, db: Session) -> dict:
     """Build a consistent auth response with workspace info."""
-    # Get active workspace info
     active_workspace = None
     if user.active_workspace_id:
         ws = db.query(Workspace).filter(Workspace.id == user.active_workspace_id).first()
@@ -100,6 +106,30 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     token = create_token({"user_id": db_user.id})
 
     return _build_user_response(db_user, token, db)
+
+
+@router.post("/change-password")
+def change_password(data: ChangePasswordRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == data.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    # Verify current password
+    if not verify_password(data.current_password, user.password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect.")
+
+    # Validate new password
+    if len(data.new_password) < 6:
+        raise HTTPException(status_code=400, detail="New password must be at least 6 characters.")
+
+    if data.current_password == data.new_password:
+        raise HTTPException(status_code=400, detail="New password must be different from current password.")
+
+    # Update password
+    user.password = hash_password(data.new_password)
+    db.commit()
+
+    return {"detail": "Password updated successfully."}
 
 
 @router.get("/me")

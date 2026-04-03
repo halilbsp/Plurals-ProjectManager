@@ -17,3 +17,15 @@ class ProjectOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ProjectMemberOut(BaseModel):
+    id: int
+    user_id: int
+    role: str
+    user_name: str
+    user_email: str
+    user_avatar: str
+
+    class Config:
+        from_attributes = True

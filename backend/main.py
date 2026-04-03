@@ -1,7 +1,9 @@
+import os
 from datetime import datetime, timedelta
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import inspect, text
 
 from app.db.database import Base, SessionLocal, engine
@@ -19,6 +21,9 @@ from app.models.user import User
 from app.models.workspace import Workspace, WorkspaceMember
 
 Base.metadata.create_all(bind=engine)
+
+# Ensure static directory exists
+os.makedirs("static/avatars", exist_ok=True)
 
 
 def ensure_task_columns() -> None:
@@ -42,13 +47,16 @@ def ensure_task_columns() -> None:
         "due_date": [
             "ALTER TABLE tasks ADD COLUMN due_date VARCHAR",
         ],
+        "assigned_to": [
+            "ALTER TABLE tasks ADD COLUMN assigned_to INTEGER",
+        ],
     }
 
     with engine.begin() as connection:
         for column_name, statements in column_updates.items():
-            for index, statement in enumerate(statements):
-                if index == 0 and column_name in existing_columns:
-                    continue
+            if column_name in existing_columns:
+                continue
+            for statement in statements:
                 connection.execute(text(statement))
 
 
@@ -72,6 +80,31 @@ def ensure_user_columns() -> None:
         for col_name, statement in new_columns.items():
             if col_name not in existing_columns:
                 connection.execute(text(statement))
+
+
+def ensure_notification_columns() -> None:
+    inspector = inspect(engine)
+    if "notifications" not in inspector.get_table_names():
+        return
+
+    existing_columns = {
+        column["name"]
+        for column in inspector.get_columns("notifications")
+    }
+    new_columns = {
+        "target_user_id": "ALTER TABLE notifications ADD COLUMN target_user_id INTEGER",
+        "sender_id": "ALTER TABLE notifications ADD COLUMN sender_id INTEGER",
+        "sender_name": "ALTER TABLE notifications ADD COLUMN sender_name VARCHAR DEFAULT ''",
+        "sender_avatar": "ALTER TABLE notifications ADD COLUMN sender_avatar VARCHAR DEFAULT ''",
+    }
+
+    with engine.begin() as connection:
+        for col_name, statement in new_columns.items():
+            if col_name not in existing_columns:
+                try:
+                    connection.execute(text(statement))
+                except Exception:
+                    pass
 
 
 def ensure_demo_data() -> None:
@@ -145,13 +178,11 @@ def ensure_demo_data() -> None:
                 db.add(User(**u))
             db.commit()
 
-            # Update workspace owner
             first_user = db.query(User).order_by(User.id.asc()).first()
             if first_user:
                 workspace.owner_id = first_user.id
                 db.commit()
 
-            # Create workspace memberships for all users
             all_users = db.query(User).order_by(User.id.asc()).all()
             for u in all_users:
                 existing_member = db.query(WorkspaceMember).filter_by(
@@ -165,7 +196,6 @@ def ensure_demo_data() -> None:
                     ))
             db.commit()
 
-        # ── Ensure existing users have workspace memberships ──
         all_users = db.query(User).order_by(User.id.asc()).all()
         for u in all_users:
             existing_member = db.query(WorkspaceMember).filter_by(
@@ -269,6 +299,9 @@ def ensure_demo_data() -> None:
         )
         if not existing_notifications:
             now = datetime.now()
+            all_users = db.query(User).order_by(User.id.asc()).all()
+            user_map = {u.id: u for u in all_users}
+
             notification_seed = [
                 {
                     "title": "Welcome to Plurals",
@@ -276,23 +309,35 @@ def ensure_demo_data() -> None:
                     "type": "system",
                     "is_read": 1,
                     "project_id": None,
+                    "sender_id": None,
+                    "sender_name": "System",
+                    "sender_avatar": "",
+                    "target_user_id": None,
                     "created_at": (now - timedelta(days=2)).isoformat(),
                 },
                 {
                     "title": "New task assigned",
-                    "message": "You have been assigned to 'Design QA Checklist'",
+                    "message": "You have been assigned to 'Design QA Checklist'. Please review the requirements and update your progress.",
                     "type": "task",
                     "is_read": 0,
                     "project_id": 1,
-                    "created_at": (now - timedelta(hours=6)).isoformat(),
+                    "sender_id": 1,
+                    "sender_name": user_map[1].name if 1 in user_map else "AR Shakir",
+                    "sender_avatar": user_map[1].avatar if 1 in user_map else "",
+                    "target_user_id": None,
+                    "created_at": (now - timedelta(hours=23)).isoformat(),
                 },
                 {
                     "title": "Broadcast from Scott",
-                    "message": "Great work on the landing page! The client loved it 🎉",
+                    "message": "Great work on the landing page! The client loved the new design direction. Let's keep this momentum going for the next sprint 🎉",
                     "type": "broadcast",
                     "is_read": 0,
                     "project_id": 1,
-                    "created_at": (now - timedelta(hours=3)).isoformat(),
+                    "sender_id": 3,
+                    "sender_name": user_map[3].name if 3 in user_map else "Scott Wilson",
+                    "sender_avatar": user_map[3].avatar if 3 in user_map else "",
+                    "target_user_id": None,
+                    "created_at": (now - timedelta(hours=20)).isoformat(),
                 },
                 {
                     "title": "Task completed",
@@ -300,15 +345,35 @@ def ensure_demo_data() -> None:
                     "type": "task",
                     "is_read": 0,
                     "project_id": 1,
-                    "created_at": (now - timedelta(hours=1)).isoformat(),
+                    "sender_id": 4,
+                    "sender_name": user_map[4].name if 4 in user_map else "Jessica Park",
+                    "sender_avatar": user_map[4].avatar if 4 in user_map else "",
+                    "target_user_id": None,
+                    "created_at": (now - timedelta(hours=18)).isoformat(),
                 },
                 {
                     "title": "Sprint review reminder",
-                    "message": "Weekly sprint review starts in 30 minutes",
+                    "message": "Weekly sprint review starts in 30 minutes. Please prepare your updates and join the meeting room.",
                     "type": "system",
                     "is_read": 0,
                     "project_id": None,
-                    "created_at": (now - timedelta(minutes=30)).isoformat(),
+                    "sender_id": None,
+                    "sender_name": "System",
+                    "sender_avatar": "",
+                    "target_user_id": None,
+                    "created_at": (now - timedelta(hours=18)).isoformat(),
+                },
+                {
+                    "title": "New Broadcast",
+                    "message": "Hi! 💯",
+                    "type": "broadcast",
+                    "is_read": 1,
+                    "project_id": 1,
+                    "sender_id": 1,
+                    "sender_name": user_map[1].name if 1 in user_map else "AR Shakir",
+                    "sender_avatar": user_map[1].avatar if 1 in user_map else "",
+                    "target_user_id": None,
+                    "created_at": (now - timedelta(hours=14)).isoformat(),
                 },
             ]
 
@@ -381,6 +446,7 @@ def ensure_demo_data() -> None:
 
 ensure_task_columns()
 ensure_user_columns()
+ensure_notification_columns()
 ensure_demo_data()
 
 from app.api.activity import router as activity_router
@@ -395,6 +461,7 @@ from app.api.task import router as task_router
 from app.api.task_detail import router as task_detail_router
 from app.api.user import router as user_router
 from app.api.workspace import router as workspace_router
+from app.api.export import router as export_router
 
 app = FastAPI()
 
@@ -405,6 +472,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Serve uploaded files (avatars, etc.)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 app.include_router(activity_router, prefix="/activity")
 app.include_router(activity_log_router, prefix="/activity-log")
@@ -418,3 +488,4 @@ app.include_router(task_router, prefix="/task")
 app.include_router(task_detail_router, prefix="/task")
 app.include_router(user_router, prefix="/user")
 app.include_router(workspace_router, prefix="/workspace")
+app.include_router(export_router, prefix="/export")
