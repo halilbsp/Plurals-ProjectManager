@@ -1,9 +1,9 @@
 from datetime import datetime, timedelta
-from jose import jwt
-import bcrypt
 
-SECRET_KEY = "secret123"
-ALGORITHM = "HS256"
+import bcrypt
+from jose import jwt
+
+from app.core.config import ACCESS_TOKEN_EXPIRE_HOURS, ALGORITHM, SECRET_KEY
 
 
 def hash_password(password: str) -> str:
@@ -21,6 +21,6 @@ def verify_password(password: str, hashed: str) -> bool:
 
 def create_token(data: dict):
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(hours=5)
+    expire = datetime.utcnow() + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)

@@ -1,10 +1,7 @@
-import os
-
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./app.db")
+from app.core.config import DATABASE_URL
 
 engine_options = (
     {"connect_args": {"check_same_thread": False}}
